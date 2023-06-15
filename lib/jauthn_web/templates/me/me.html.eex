@@ -1,0 +1,21 @@
+<section class="phx-hero">
+  <h1>Welcome to J-Authn!</h1>
+  <p>Hello <em><%= @login %></em>!</p>
+</section>
+
+<section>
+  <h2>Your registered keys</h2>
+
+  <table>
+    <tr><th>Credential ID</th><th>Cose key</th><th>Authenticator model</th></tr>
+    <%= for {_, _, credential_id, cose_key, maybe_aaguid} <- @keys do %>
+    <tr>
+      <td><%= String.slice(credential_id, 0..26) %>...</td>
+      <td><%= inspect(cose_key) %></td>
+      <td><%= icon_for_authenticator(maybe_aaguid) %></td>
+    </tr>
+    <% end %>
+  </table>
+</section>
+
+<p style="text-align:right"><a href="<%= Routes.register_key_path(@conn, :index) %>">Register new key</a></p>

@@ -1,0 +1,115 @@
+<section class="phx-hero" style="text-align: center;">
+  <h1>Register a new security key</h1>
+  <button id="safari-button" style="display:none" onclick="triggerAttestation()">Register</button>
+  <img id="auth-img" src="<%= Routes.static_path(@conn, "/images/fingerprint-scanning.svg") %>"/><br/>
+  <p><em><%= String.capitalize(@login) %></em>, press your authenticator now!</p>
+</section>
+
+<section>
+  <p style="text-align:right"><a href="/me">Skip</a></p>
+  <p>
+  <%= form_for @conn, Routes.register_key_path(@conn, :index), [as: :key, id: "waf"], fn f -> %>
+    <%= hidden_input f, :rawID, id: "rawID" %>
+    <%= hidden_input f, :type, id: "type" %>
+    <%= hidden_input f, :clientDataJSON, id: "clientDataJSON" %>
+    <%= hidden_input f, :attestationObject, id: "attestationObject" %>
+    <%= submit "Skip", style: "visibility:hidden" %>
+  <% end %>
+  </p>
+</section>
+
+<script>
+var challenge_b64 = "<%= @challenge %>";
+var rp_id = "<%= @rp_id %>";
+var user = "<%= @user %>";
+var user_id_b64 = "<%= @user_id %>";
+
+function _arrayBufferToString( buffer ) {
+  var binary = '';
+  var bytes = new Uint8Array( buffer );
+  var len = bytes.byteLength;
+  for (var i = 0; i < len; i++) {
+    binary += String.fromCharCode( bytes[ i ] );
+  }
+  return binary;
+}
+
+function _arrayBufferToBase64( buffer ) {
+  var binary = '';
+  var bytes = new Uint8Array( buffer );
+  var len = bytes.byteLength;
+  for (var i = 0; i < len; i++) {
+    binary += String.fromCharCode( bytes[ i ] );
+  }
+  return window.btoa( binary );
+}
+
+function _base64ToArrayBuffer(base64) {
+    var binary_string =  window.atob(base64);
+    var len = binary_string.length;
+    var bytes = new Uint8Array( len );
+    for (var i = 0; i < len; i++)        {
+        bytes[i] = binary_string.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
+function triggerAttestation(){
+  document.getElementById('safari-button').style.display = 'none';
+  document.getElementById('auth-img').style.display = 'inline';
+
+  challenge = _base64ToArrayBuffer(challenge_b64);
+  user_id = _base64ToArrayBuffer(user_id_b64);
+
+  console.log(challenge_b64, "CHALLENGE B64");
+  console.log(challenge, "CHALLENGE BINARY");
+
+  navigator.credentials.create({
+    publicKey: {
+      challenge: challenge,
+      rp: {
+        id: rp_id,
+        name: 'My App'
+      },
+      user: {
+        id: user_id,
+        name: user,
+        displayName: user
+      },
+      pubKeyCredParams: [
+        {
+          type: "public-key", alg: -7
+        }
+      ],
+     attestation: "<%= @attestation %>",
+      authenticatorSelection: {
+        residentKey: 'preferred'
+      }
+    }
+  }).then(function (newCredential) {
+    console.log(newCredential.response, "NEW CREDS RESPONSE");
+    console.log(_arrayBufferToBase64(newCredential.rawId, "RAW ID BASE64"));
+    console.log(_arrayBufferToString(newCredential.response.clientDataJSON, "CLIENT DATA JSON STRING"));
+    console.log(_arrayBufferToBase64(newCredential.response.attestationObject, "ATTESTATION OBJECT BASE64"));
+
+    document.getElementById('rawID').value = _arrayBufferToBase64(newCredential.rawId);
+    document.getElementById('type').value = newCredential.type;
+    document.getElementById('clientDataJSON').value =
+      _arrayBufferToString(newCredential.response.clientDataJSON)
+    document.getElementById('attestationObject').value =
+      _arrayBufferToBase64(newCredential.response.attestationObject)
+
+    document.getElementById('waf').submit();
+  }).catch(function (err) {
+    if(err.name == 'NotAllowedError') {
+        document.getElementById('safari-button').style.display = 'inline-block';
+        document.getElementById('auth-img').style.display = 'none';
+      }
+    else {
+        console.log(err);
+      }
+  });
+}
+
+triggerAttestation();
+</script>

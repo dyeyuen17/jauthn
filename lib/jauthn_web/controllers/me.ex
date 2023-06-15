@@ -1,0 +1,22 @@
+defmodule JauthnWeb.MeController do
+  use JauthnWeb, :controller
+
+  def index(conn, %{"logout" => _}) do
+    conn
+    |> configure_session(drop: true)
+    |> clear_session()
+    |> index(%{})
+  end
+
+  def index(conn, _params) do
+    if get_session(conn, :authenticated) do
+      login = get_session(conn, :login)
+
+      keys = Jauthn.User.get_by_username(login)
+
+      render(conn, "me.html", login: login, keys: keys)
+    else
+      redirect(conn, to: "/")
+    end
+  end
+end
